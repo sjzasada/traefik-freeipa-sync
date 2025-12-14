@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+README.md
+*.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+
+# Logs
+*.log
+logs/
+
+# Config (will be mounted)
+config.yml
+*.yml
+!requirements.txt
+
+# Certificates
+certs/
+*.crt
+*.key
+*.csr
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Other
+.DS_Store
+*.tar
+*.tar.gz

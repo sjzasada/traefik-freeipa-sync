@@ -1,6 +1,6 @@
-# DNS Helper for Docker Swarm + Traefik + FreeIPA
+# Traefik FreeIPA Sync
 
-A sidecar service for Docker Swarm that automatically manages DNS records and SSL certificates in FreeIPA for services exposed through Traefik, with a built-in web catalog of internal services.
+Automated DNS and certificate management for Docker Swarm services. Automatically syncs Traefik-routed services to FreeIPA DNS with SSL certificates, featuring a built-in web catalog of internal services.
 
 ## Features
 
@@ -93,20 +93,35 @@ labels:
 
 ## Deployment
 
-### Build the Container
+### Using Pre-built Images
+
+Images are automatically built and published to Docker Hub on every push to main:
+
+```bash
+# Pull the latest image
+docker pull <your-dockerhub-username>/traefik-freeipa-sync:latest
+
+# Or use a specific version tag
+docker pull <your-dockerhub-username>/traefik-freeipa-sync:v1.0.0
+```
+
+### Build the Container Manually
 
 ```bash
 # For ARM64
-docker build -t dns-helper:latest .
+docker build -t traefik-freeipa-sync:latest .
 
 # For AMD64 (on ARM Mac)
-docker buildx build --platform linux/amd64 -t dns-helper:amd64 .
+docker buildx build --platform linux/amd64 -t traefik-freeipa-sync:amd64 .
+
+# Multi-platform build
+docker buildx build --platform linux/amd64,linux/arm64 -t traefik-freeipa-sync:latest .
 ```
 
 ### Deploy to Swarm
 
 ```bash
-docker stack deploy -c docker-compose.yml dns-helper
+docker stack deploy -c docker-compose.yml traefik-freeipa-sync
 ```
 
 Example `docker-compose.yml`:
@@ -115,8 +130,8 @@ Example `docker-compose.yml`:
 version: '3.8'
 
 services:
-  dns-automation:
-    image: dns-helper:latest
+  traefik-freeipa-sync:
+    image: traefik-freeipa-sync:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config.yml:/config/config.yml:ro
@@ -148,11 +163,43 @@ Access the service catalog at `http://<host>:8080` to view:
 - SSL certificate status
 - Service categories
 
+## GitHub Actions CI/CD
+
+The repository includes a GitHub Actions workflow that automatically:
+- Builds multi-platform Docker images (AMD64 and ARM64)
+- Publishes to Docker Hub on push to `main` branch
+- Creates tagged releases when you push version tags (e.g., `v1.0.0`)
+- Updates the Docker Hub repository description from README.md
+
+### Setup GitHub Secrets
+
+To enable automatic builds, add these secrets to your GitHub repository:
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add the following secrets:
+   - `DOCKERHUB_USERNAME`: Your Docker Hub username
+   - `DOCKERHUB_TOKEN`: Docker Hub access token (generate at https://hub.docker.com/settings/security)
+
+### Tagging Releases
+
+```bash
+# Create and push a version tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# This will create images tagged as:
+# - your-username/traefik-freeipa-sync:1.0.0
+# - your-username/traefik-freeipa-sync:1.0
+# - your-username/traefik-freeipa-sync:1
+# - your-username/traefik-freeipa-sync:latest
+```
+
 ## Files
 
 - `dns-automation.py` - Main automation script
 - `web_catalog.py` - Web interface for service catalog
 - `Dockerfile` - Container build definition
+- `.github/workflows/docker-publish.yml` - CI/CD workflow for Docker Hub
 
 ## License
 
