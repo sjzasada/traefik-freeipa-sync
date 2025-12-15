@@ -42,14 +42,23 @@ swarm:
   traefik_ips:
     - 10.0.0.10
     - 10.0.0.11
-  required_label: dns.manage
+  # Only process services with this label
+  required_label: "traefik.enable"
+  # Label that contains the hostname to register
+  hostname_label: "dns.hostname"
+  # Alternative: extract from Traefik router rule
   extract_from_traefik: true
 
 certificates:
+  # Enable certificate automation
   enabled: true
+  # Certificate storage path (will be mounted to Traefik)
   cert_path: /certs/services
+  # Certificate validity in days
   validity_days: 730
+  # Auto-renew when certificate expires in X days
   renew_threshold_days: 30
+
 
 web:
   enabled: true
@@ -60,6 +69,14 @@ web:
 logging:
   level: INFO
   file: /logs/dns-automation.log
+
+# Manual services (not auto-discovered)
+manual_services:
+  - name: "FreeIPA"
+    url: "https://ipa.example.com
+    description: "Identity Management & Certificate Authority"
+    category: "Infrastructure"
+
 ```
 
 ## Docker Service Labels
@@ -73,7 +90,6 @@ services:
   myapp:
     image: myapp:latest
     labels:
-      - "dns.manage=true"
       - "traefik.enable=true"
       - "traefik.http.routers.myapp-web.rule=Host(`web.example.com`)"
       - "traefik.http.routers.myapp-api.rule=Host(`api.example.com`)"
@@ -89,33 +105,6 @@ Alternatively, specify hostname explicitly:
 labels:
   - "dns.manage=true"
   - "dns.hostname=myservice"
-```
-
-## Deployment
-
-### Using Pre-built Images
-
-Images are automatically built and published to Docker Hub on every push to main:
-
-```bash
-# Pull the latest image
-docker pull <your-dockerhub-username>/traefik-freeipa-sync:latest
-
-# Or use a specific version tag
-docker pull <your-dockerhub-username>/traefik-freeipa-sync:v1.0.0
-```
-
-### Build the Container Manually
-
-```bash
-# For ARM64
-docker build -t traefik-freeipa-sync:latest .
-
-# For AMD64 (on ARM Mac)
-docker buildx build --platform linux/amd64 -t traefik-freeipa-sync:amd64 .
-
-# Multi-platform build
-docker buildx build --platform linux/amd64,linux/arm64 -t traefik-freeipa-sync:latest .
 ```
 
 ### Deploy to Swarm
@@ -137,13 +126,22 @@ services:
       - ./config.yml:/config/config.yml:ro
       - ./certs:/certs/services
       - ./logs:/logs
-      - traefik-config:/traefik-config
+      - ./certs/freeipa-ca.crt:/etc/pki/ca-trust/source/anchors/freeipa-ca.crt:ro #your freeipa CA cert
+      - ./traefik-config:/traefik-config
     networks:
       - traefik
     deploy:
       placement:
         constraints:
           - node.role == manager
+      #Expose the catalog service through Traefik
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=traefik"
+        - "traefik.http.routers.catalog.rule=Host(`catalog.example.com`)"
+        - "traefik.http.routers.catalog.entrypoints=websecure"
+        - "traefik.http.routers.catalog.tls=true"
+        - "traefik.http.services.catalog.loadbalancer.server.port=8080"
 
 volumes:
   traefik-config:
@@ -156,43 +154,12 @@ networks:
 
 ## Web Catalog
 
-Access the service catalog at `http://<host>:8080` to view:
+Access the service catalog at `https://catalog.example.com` or  `http://<host>:8080` to view:
 
 - All auto-discovered services
 - Manual services from config
 - SSL certificate status
 - Service categories
-
-## GitHub Actions CI/CD
-
-The repository includes a GitHub Actions workflow that automatically:
-- Builds multi-platform Docker images (AMD64 and ARM64)
-- Publishes to Docker Hub on push to `main` branch
-- Creates tagged releases when you push version tags (e.g., `v1.0.0`)
-- Updates the Docker Hub repository description from README.md
-
-### Setup GitHub Secrets
-
-To enable automatic builds, add these secrets to your GitHub repository:
-
-1. Go to **Settings** → **Secrets and variables** → **Actions**
-2. Add the following secrets:
-   - `DOCKERHUB_USERNAME`: Your Docker Hub username
-   - `DOCKERHUB_TOKEN`: Docker Hub access token (generate at https://hub.docker.com/settings/security)
-
-### Tagging Releases
-
-```bash
-# Create and push a version tag
-git tag v1.0.0
-git push origin v1.0.0
-
-# This will create images tagged as:
-# - your-username/traefik-freeipa-sync:1.0.0
-# - your-username/traefik-freeipa-sync:1.0
-# - your-username/traefik-freeipa-sync:1
-# - your-username/traefik-freeipa-sync:latest
-```
 
 ## Files
 
