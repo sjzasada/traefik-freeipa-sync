@@ -354,8 +354,20 @@ def extract_hostnames(service) -> List[str]:
         # Method 2: Extract from ALL Traefik router rules
         if config['swarm']['extract_from_traefik']:
             for key, value in labels.items():
+                # HTTP routers with Host() rules
                 if 'traefik.http.routers' in key and '.rule' in key:
                     match = re.search(r'Host\(`([^`]+)`\)', value)
+                    if match:
+                        fqdn = match.group(1)
+                        if fqdn.endswith(f'.{config["freeipa"]["dns_zone"]}'):
+                            hostname = fqdn.replace(f'.{config["freeipa"]["dns_zone"]}', '')
+                            # Avoid duplicates
+                            if hostname not in hostnames:
+                                hostnames.append(hostname)
+
+                # TCP routers with HostSNI() rules
+                if 'traefik.tcp.routers' in key and '.rule' in key:
+                    match = re.search(r'HostSNI\(`([^`]+)`\)', value)
                     if match:
                         fqdn = match.group(1)
                         if fqdn.endswith(f'.{config["freeipa"]["dns_zone"]}'):

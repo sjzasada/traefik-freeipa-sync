@@ -7,6 +7,7 @@ Automated DNS and certificate management for Docker Swarm services. Automaticall
 - **Automatic DNS Management**: Monitors Docker Swarm events and creates/removes DNS records in FreeIPA
 - **Certificate Automation**: Requests and manages SSL certificates from FreeIPA
 - **Multi-Hostname Support**: Handles services with multiple entrypoints/domain names
+- **HTTP & TCP Support**: Discovers hostnames from both HTTP `Host()` and TCP `HostSNI()` Traefik rules
 - **Web Catalog**: Provides a visual catalog of all internal services
 - **Traefik Integration**: Automatically discovers services from Traefik router labels
 
@@ -83,7 +84,7 @@ manual_services:
 
 ### Automatic Discovery from Traefik
 
-The service automatically discovers hostnames from Traefik router rules:
+The service automatically discovers hostnames from Traefik router rules (both HTTP and TCP):
 
 ```yaml
 services:
@@ -91,11 +92,14 @@ services:
     image: myapp:latest
     labels:
       - "traefik.enable=true"
+      # HTTP routers with Host() rules
       - "traefik.http.routers.myapp-web.rule=Host(`web.example.com`)"
       - "traefik.http.routers.myapp-api.rule=Host(`api.example.com`)"
+      # TCP routers with HostSNI() rules
+      - "traefik.tcp.routers.myapp-secure.rule=HostSNI(`secure.example.com`)"
 ```
 
-Both `web.example.com` and `api.example.com` will get DNS records and certificates.
+All hostnames (`web.example.com`, `api.example.com`, and `secure.example.com`) will get DNS records and certificates.
 
 ### Explicit Hostname Label
 
